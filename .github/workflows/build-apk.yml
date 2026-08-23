@@ -36,6 +36,12 @@ jobs:
       - name: Compilar APK (debug)
         run: cordova build android
 
+      - name: Conferir permissões no manifest final
+        run: cat platforms/android/app/src/main/AndroidManifest.xml
+
+      - name: Conferir plugins instalados
+        run: cordova plugin list
+
       - name: Localizar APK gerado
         run: find . -name "*.apk"
 
