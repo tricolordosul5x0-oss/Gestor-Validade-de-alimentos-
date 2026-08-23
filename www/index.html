@@ -251,6 +251,7 @@
     </div>
   </div>
 
+<script src="cordova.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
   const CHAVE_ARMAZENAMENTO = "gestor-validade-itens";
@@ -324,7 +325,34 @@
   function abrirScanner() {
     document.getElementById("sobreposicao-scanner").classList.add("visivel");
     definirStatusScanner("Aponte a câmera para o código de barras da embalagem.");
+    garantirPermissaoCamera(iniciarLeitor, () => {
+      definirStatusScanner("Permissão de câmera negada. Ative em Ajustes do Android > Apps > Gestor de Validade > Permissões.");
+    });
+  }
 
+  // No app empacotado (Cordova), o Android exige pedir a permissão de câmera
+  // em tempo de execução, além da que já está declarada no config.xml.
+  function garantirPermissaoCamera(aoConceder, aoNegar) {
+    if (window.cordova && cordova.plugins && cordova.plugins.permissions) {
+      const permissoes = cordova.plugins.permissions;
+      permissoes.checkPermission(permissoes.CAMERA, (status) => {
+        if (status.hasPermission) {
+          aoConceder();
+        } else {
+          permissoes.requestPermission(
+            permissoes.CAMERA,
+            (status2) => (status2.hasPermission ? aoConceder() : aoNegar()),
+            aoNegar
+          );
+        }
+      }, aoNegar);
+    } else {
+      // rodando num navegador comum (fora do APK) — o próprio navegador pede a permissão
+      aoConceder();
+    }
+  }
+
+  function iniciarLeitor() {
     leitorAtivo = new Html5Qrcode("leitor");
     const config = { fps: 10, qrbox: { width: 260, height: 140 } };
 
