@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Gestor de Validade</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Work+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap');
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+
+  body {
+    min-height: 100vh;
+    background: #EDE8DC;
+    color: #262B21;
+    font-family: 'Work Sans', sans-serif;
+    padding-bottom: 40px;
+  }
+
+  .cabecalho {
+    background: #3F6B3A;
+    color: #F4F0E4;
+    padding: 22px 18px 26px;
+  }
+  .cabecalho-conteudo { max-width: 560px; margin: 0 auto; }
+  .marca {
+    display: flex; align-items: center; gap: 8px;
+    font-family: 'Fraunces', serif; font-weight: 700; font-size: 21px;
+  }
+  .marca svg { flex-shrink: 0; }
+  .subtitulo { margin: 8px 0 0; font-size: 13.5px; color: #DDE6D3; line-height: 1.45; max-width: 46ch; }
+
+  .abas {
+    max-width: 560px; margin: -16px auto 0; padding: 0 14px;
+    display: none; gap: 8px;
+  }
+  .abas.visivel { display: flex; }
+  .aba {
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+    background: #F7F4EC; border: 1px solid #D8D2C1; color: #5B5A4C;
+    border-radius: 10px; padding: 11px 10px; font-size: 13.5px; font-weight: 500;
+    cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.06); font-family: inherit;
+  }
+  .aba-ativa { background: #262B21; color: #F4F0E4; border-color: #262B21; }
+  .aba-alerta { color: #A23A22; border-color: #E3B7A8; }
+  .aba-alerta.aba-ativa { background: #C1442E; color: #F4F0E4; border-color: #C1442E; }
+  .contagem {
+    background: rgba(0,0,0,0.15); border-radius: 999px; font-size: 11px;
+    padding: 1px 7px; font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .aviso-alerta { font-size: 12px; color: #A23A22; margin: 6px 0 14px; display: none; }
+  .aviso-alerta.visivel { display: block; }
+
+  .conteudo { max-width: 560px; margin: 0 auto; padding: 24px 14px 0; }
+
+  .secao-topo { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; gap: 10px; }
+  .secao-topo h2 { font-family: 'Fraunces', serif; font-size: 18px; margin: 0; }
+  .botoes-topo { display: flex; gap: 8px; }
+
+  .botao-secundario {
+    display: flex; align-items: center; gap: 6px;
+    background: transparent; border: 1px solid #3F6B3A; color: #3F6B3A;
+    border-radius: 8px; padding: 8px 12px; font-size: 13.5px; font-weight: 500;
+    cursor: pointer; font-family: inherit;
+  }
+  .botao-secundario:active { transform: translateY(1px); }
+
+  .botao-primario {
+    display: flex; align-items: center; gap: 6px;
+    background: #3F6B3A; color: #F4F0E4; border: none; border-radius: 8px;
+    padding: 9px 13px; font-size: 13.5px; font-weight: 500; cursor: pointer;
+    font-family: inherit;
+  }
+  .botao-primario:active { transform: translateY(1px); }
+  .botao-largo { width: 100%; justify-content: center; margin-top: 6px; }
+
+  .botao-icone {
+    background: transparent; border: none; color: #8A8877; cursor: pointer;
+    padding: 6px; border-radius: 6px; display: flex;
+  }
+  .botao-icone:hover { background: #E5E0D2; color: #262B21; }
+
+  .lista { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+
+  .cartao {
+    background: #F7F4EC; border: 1px solid #E1DBC9; border-left-width: 5px;
+    border-radius: 10px; padding: 12px; display: flex; align-items: center; gap: 12px;
+  }
+  .cartao-info { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .cartao-info strong { font-size: 14.5px; }
+  .cartao-meta { font-size: 12px; color: #6B6A5C; }
+  .cartao-acoes { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+
+  .selo {
+    flex-shrink: 0; width: 58px; height: 58px; border-radius: 50%;
+    border: 2px dashed currentColor; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; transform: rotate(-7deg);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .selo-topo { font-size: 8px; letter-spacing: 0.08em; opacity: 0.75; }
+  .selo-texto { font-size: 9.5px; font-weight: 500; text-align: center; line-height: 1.15; padding: 0 4px; }
+
+  .vazio {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    color: #8A8877; text-align: center; padding: 34px 12px; font-size: 13.5px;
+  }
+
+  .faixa-erro {
+    background: #F6E4DF; color: #A23A22; border: 1px solid #E3B7A8;
+    border-radius: 8px; padding: 10px 12px; font-size: 13px; margin-bottom: 12px; display: none;
+  }
+  .faixa-erro.visivel { display: block; }
+
+  .sobreposicao {
+    position: fixed; inset: 0; background: rgba(38,43,33,0.45);
+    display: none; align-items: flex-end; justify-content: center; z-index: 50;
+  }
+  .sobreposicao.visivel { display: flex; }
+  .modal {
+    background: #F7F4EC; width: 100%; max-width: 480px;
+    border-radius: 16px 16px 0 0; padding: 18px 18px 22px;
+    display: flex; flex-direction: column; gap: 12px;
+    max-height: 88vh; overflow-y: auto;
+  }
+  .modal-topo { display: flex; align-items: center; justify-content: space-between; }
+  .modal-topo h3 { font-family: 'Fraunces', serif; margin: 0; font-size: 17px; }
+
+  .campo { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: #5B5A4C; flex: 1; }
+  .campo input, .campo select {
+    font-family: 'Work Sans', sans-serif; font-size: 14px; padding: 9px 10px;
+    border: 1px solid #D8D2C1; border-radius: 7px; background: #FFFEFB; color: #262B21;
+  }
+  .campo input:focus, .campo select:focus { outline: 2px solid #3F6B3A; outline-offset: 1px; }
+  .campo-linha { display: flex; gap: 10px; }
+
+  .etiqueta-tipo { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: #8A8877; font-weight: 500; }
+
+  #leitor { width: 100%; border-radius: 10px; overflow: hidden; background: #000; min-height: 220px; }
+  .status-scanner { font-size: 12.5px; color: #6B6A5C; text-align: center; margin: 10px 0 0; }
+</style>
+</head>
+<body>
+
+  <header class="cabecalho">
+    <div class="cabecalho-conteudo">
+      <div class="marca">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
+        <span>Gestor de Validade</span>
+      </div>
+      <p class="subtitulo">Acompanhe o que vence em casa antes que estrague.</p>
+    </div>
+  </header>
+
+  <nav class="abas" id="abas">
+    <button class="aba aba-ativa" id="aba-todos" onclick="mudarAba('todos')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>
+      Todos
+    </button>
+    <button class="aba aba-alerta" id="aba-alerta" onclick="mudarAba('alerta')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+      Vencendo
+      <span class="contagem" id="contagem-alerta">0</span>
+    </button>
+  </nav>
+
+  <main class="conteudo">
+    <div class="faixa-erro" id="faixa-erro">Não foi possível salvar. Tente novamente.</div>
+
+    <section>
+      <div class="secao-topo">
+        <h2 id="titulo-secao">Itens guardados</h2>
+        <div class="botoes-topo">
+          <button class="botao-secundario" onclick="abrirScanner()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/></svg>
+            Escanear
+          </button>
+          <button class="botao-primario" onclick="abrirFormulario()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+            Adicionar
+          </button>
+        </div>
+      </div>
+
+      <p class="aviso-alerta" id="aviso-alerta">Itens com 7 dias ou menos até o vencimento (ou já vencidos).</p>
+
+      <div class="vazio" id="vazio">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+        <p>Nada cadastrado ainda. Adicione o primeiro item da despensa.</p>
+      </div>
+
+      <ul class="lista" id="lista"></ul>
+    </section>
+  </main>
+
+  <div class="sobreposicao" id="sobreposicao" onclick="fecharFormularioClique(event)">
+    <form class="modal" id="formulario" onclick="event.stopPropagation()">
+      <div class="modal-topo">
+        <h3>Novo item</h3>
+        <button type="button" class="botao-icone" onclick="fecharFormulario()" aria-label="Fechar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+
+      <label class="campo">
+        Nome do item
+        <input type="text" id="campo-nome" placeholder="Ex.: Iogurte natural" required />
+      </label>
+
+      <label class="campo" id="campo-codigo-wrap" style="display:none;">
+        Código de barras
+        <input type="text" id="campo-codigo" readonly />
+      </label>
+
+      <div class="campo-linha">
+        <label class="campo">
+          Categoria
+          <select id="campo-categoria">
+            <option>Geladeira</option>
+            <option>Despensa</option>
+            <option>Congelador</option>
+            <option>Higiene/Casa</option>
+          </select>
+        </label>
+        <label class="campo">
+          Quantidade
+          <input type="text" id="campo-quantidade" placeholder="Ex.: 2 un." />
+        </label>
+      </div>
+
+      <label class="campo">
+        Validade
+        <input type="date" id="campo-validade" required />
+      </label>
+
+      <button class="botao-primario botao-largo" type="submit">Salvar item</button>
+    </form>
+  </div>
+
+  <div class="sobreposicao" id="sobreposicao-scanner" onclick="fecharScannerClique(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-topo">
+        <h3>Escanear código de barras</h3>
+        <button type="button" class="botao-icone" onclick="fecharScanner()" aria-label="Fechar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+      <div id="leitor"></div>
+      <p class="status-scanner" id="status-scanner">Aponte a câmera para o código de barras da embalagem.</p>
+    </div>
+  </div>
+
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+  const CHAVE_ARMAZENAMENTO = "gestor-validade-itens";
+  const DIA_MS = 24 * 60 * 60 * 1000;
+
+  let itens = carregarItens();
+  let abaAtual = "todos";
+
+  function carregarItens() {
+    try {
+      const bruto = localStorage.getItem(CHAVE_ARMAZENAMENTO);
+      return bruto ? JSON.parse(bruto) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function salvarItens() {
+    try {
+      localStorage.setItem(CHAVE_ARMAZENAMENTO, JSON.stringify(itens));
+      document.getElementById("faixa-erro").classList.remove("visivel");
+    } catch (e) {
+      document.getElementById("faixa-erro").classList.add("visivel");
+    }
+  }
+
+  function uid() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  function diasRestantes(validade) {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const alvo = new Date(validade + "T00:00:00");
+    return Math.round((alvo - hoje) / DIA_MS);
+  }
+
+  function statusPorDias(d) {
+    if (d < 0) return { chave: "vencido", rotulo: "Vencido", cor: "#C1442E" };
+    if (d <= 3) return { chave: "urgente", rotulo: d === 0 ? "Vence hoje" : `${d} dia${d > 1 ? "s" : ""}`, cor: "#C1442E" };
+    if (d <= 7) return { chave: "atencao", rotulo: `${d} dias`, cor: "#C98A1E" };
+    return { chave: "ok", rotulo: `${d} dias`, cor: "#3F6B3A" };
+  }
+
+  function mudarAba(nome) {
+    abaAtual = nome;
+    document.getElementById("aba-todos").classList.toggle("aba-ativa", nome === "todos");
+    document.getElementById("aba-alerta").classList.toggle("aba-ativa", nome === "alerta");
+    renderizar();
+  }
+
+  function abrirFormulario() {
+    document.getElementById("sobreposicao").classList.add("visivel");
+    document.getElementById("campo-nome").focus();
+  }
+
+  function fecharFormulario() {
+    document.getElementById("sobreposicao").classList.remove("visivel");
+    document.getElementById("formulario").reset();
+    document.getElementById("campo-codigo-wrap").style.display = "none";
+    document.getElementById("campo-codigo").value = "";
+  }
+
+  function fecharFormularioClique(evento) {
+    if (evento.target.id === "sobreposicao") fecharFormulario();
+  }
+
+  // ---------- leitor de código de barras ----------
+  let leitorAtivo = null;
+
+  function abrirScanner() {
+    document.getElementById("sobreposicao-scanner").classList.add("visivel");
+    definirStatusScanner("Aponte a câmera para o código de barras da embalagem.");
+
+    leitorAtivo = new Html5Qrcode("leitor");
+    const config = { fps: 10, qrbox: { width: 260, height: 140 } };
+
+    leitorAtivo
+      .start({ facingMode: "environment" }, config, onCodigoLido, () => {})
+      .catch(() => {
+        definirStatusScanner("Não foi possível acessar a câmera. Verifique a permissão do app.");
+      });
+  }
+
+  function fecharScanner() {
+    document.getElementById("sobreposicao-scanner").classList.remove("visivel");
+    if (leitorAtivo) {
+      leitorAtivo.stop().then(() => leitorAtivo.clear()).catch(() => {});
+      leitorAtivo = null;
+    }
+  }
+
+  function fecharScannerClique(evento) {
+    if (evento.target.id === "sobreposicao-scanner") fecharScanner();
+  }
+
+  function definirStatusScanner(texto) {
+    document.getElementById("status-scanner").textContent = texto;
+  }
+
+  async function onCodigoLido(codigo) {
+    if (!leitorAtivo) return;
+    definirStatusScanner("Código lido: " + codigo + " — buscando produto...");
+    leitorAtivo.pause(true);
+
+    let nomeEncontrado = "";
+    try {
+      const resposta = await fetch(`https://world.openfoodfacts.org/api/v0/product/${codigo}.json`);
+      const dados = await resposta.json();
+      if (dados.status === 1 && dados.product) {
+        nomeEncontrado = dados.product.product_name_pt || dados.product.product_name || "";
+      }
+    } catch (e) {
+      // sem internet ou falha na busca: segue sem nome preenchido
+    }
+
+    fecharScanner();
+
+    document.getElementById("campo-nome").value = nomeEncontrado;
+    document.getElementById("campo-codigo").value = codigo;
+    document.getElementById("campo-codigo-wrap").style.display = "flex";
+    abrirFormulario();
+
+    if (!nomeEncontrado) {
+      document.getElementById("campo-nome").focus();
+    } else {
+      document.getElementById("campo-validade").focus();
+    }
+  }
+
+  function removerItem(id) {
+    itens = itens.filter((i) => i.id !== id);
+    salvarItens();
+    renderizar();
+  }
+
+  document.getElementById("formulario").addEventListener("submit", function (evento) {
+    evento.preventDefault();
+    const nome = document.getElementById("campo-nome").value.trim();
+    const validade = document.getElementById("campo-validade").value;
+    if (!nome || !validade) return;
+
+    itens.unshift({
+      id: uid(),
+      nome,
+      categoria: document.getElementById("campo-categoria").value,
+      quantidade: document.getElementById("campo-quantidade").value.trim(),
+      validade,
+      codigo: document.getElementById("campo-codigo").value || "",
+    });
+
+    salvarItens();
+    fecharFormulario();
+    renderizar();
+  });
+
+  function criarSelo(dias) {
+    const st = statusPorDias(dias);
+    const texto = st.chave === "vencido" ? "VENCIDO" : st.rotulo.toUpperCase();
+    const div = document.createElement("div");
+    div.className = "selo";
+    div.style.borderColor = st.cor;
+    div.style.color = st.cor;
+    div.setAttribute("aria-label", `Validade: ${st.rotulo}`);
+    div.innerHTML = `<span class="selo-topo">VAL.</span><span class="selo-texto">${texto}</span>`;
+    return div;
+  }
+
+  function formatarData(validade) {
+    return new Date(validade + "T00:00:00").toLocaleDateString("pt-BR");
+  }
+
+  function renderizar() {
+    const listaOrdenada = itens.slice().sort((a, b) => diasRestantes(a.validade) - diasRestantes(b.validade));
+    const listaAlerta = listaOrdenada.filter((item) => statusPorDias(diasRestantes(item.validade)).chave !== "ok");
+
+    // volta pra "todos" se a aba de alerta esvaziar
+    if (abaAtual === "alerta" && listaAlerta.length === 0) {
+      abaAtual = "todos";
+      document.getElementById("aba-todos").classList.add("aba-ativa");
+      document.getElementById("aba-alerta").classList.remove("aba-ativa");
+    }
+
+    document.getElementById("abas").classList.toggle("visivel", listaAlerta.length > 0);
+    document.getElementById("contagem-alerta").textContent = listaAlerta.length;
+    document.getElementById("aviso-alerta").classList.toggle("visivel", abaAtual === "alerta");
+    document.getElementById("titulo-secao").textContent = abaAtual === "alerta" ? "Vencendo em breve" : "Itens guardados";
+
+    const listaExibida = abaAtual === "alerta" ? listaAlerta : listaOrdenada;
+
+    const ul = document.getElementById("lista");
+    ul.innerHTML = "";
+    document.getElementById("vazio").style.display = listaExibida.length === 0 ? "flex" : "none";
+
+    listaExibida.forEach((item) => {
+      const dias = diasRestantes(item.validade);
+      const st = statusPorDias(dias);
+
+      const li = document.createElement("li");
+      li.className = "cartao";
+      li.style.borderLeftColor = st.cor;
+
+      li.appendChild(criarSelo(dias));
+
+      const info = document.createElement("div");
+      info.className = "cartao-info";
+      info.innerHTML = `<strong>${escapeHtml(item.nome)}</strong>
+        <span class="cartao-meta">${escapeHtml(item.categoria)} · ${escapeHtml(item.quantidade || "1 un.")} · ${formatarData(item.validade)}</span>`;
+      li.appendChild(info);
+
+      const acoes = document.createElement("div");
+      acoes.className = "cartao-acoes";
+      const botaoRemover = document.createElement("button");
+      botaoRemover.className = "botao-icone";
+      botaoRemover.setAttribute("aria-label", `Remover ${item.nome}`);
+      botaoRemover.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
+      botaoRemover.onclick = () => removerItem(item.id);
+      acoes.appendChild(botaoRemover);
+      li.appendChild(acoes);
+
+      ul.appendChild(li);
+    });
+  }
+
+  function escapeHtml(texto) {
+    const div = document.createElement("div");
+    div.textContent = texto;
+    return div.innerHTML;
+  }
+
+  renderizar();
+</script>
+</body>
+</html>
