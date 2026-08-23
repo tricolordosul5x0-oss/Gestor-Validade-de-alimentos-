@@ -252,7 +252,7 @@
   </div>
 
 <script src="cordova.js"></script>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
   const CHAVE_ARMAZENAMENTO = "gestor-validade-itens";
   const DIA_MS = 24 * 60 * 60 * 1000;
@@ -322,30 +322,67 @@
   // ---------- leitor de código de barras ----------
   let leitorAtivo = null;
 
-  function abrirScanner() {
-    document.getElementById("sobreposicao-scanner").classList.add("visivel");
-    definirStatusScanner("Aponte a câmera para o código de barras da embalagem.");
-    garantirPermissaoCamera(iniciarLeitor, () => {
-      definirStatusScanner("Permissão de câmera negada. Ative em Ajustes do Android > Apps > Gestor de Validade > Permissões.");
+  // Sinaliza quando o Cordova terminou de carregar (necessário para os plugins nativos).
+  window.cordovaPronto = !window.cordova; // se não há cordova.js, estamos num navegador comum
+  document.addEventListener("deviceready", () => { window.cordovaPronto = true; }, false);
+
+  function aguardarCordovaPronto() {
+    return new Promise((resolve) => {
+      if (window.cordovaPronto) { resolve(); return; }
+      const limite = setTimeout(resolve, 4000); // não trava para sempre se "deviceready" nunca disparar
+      const checar = setInterval(() => {
+        if (window.cordovaPronto) {
+          clearTimeout(limite);
+          clearInterval(checar);
+          resolve();
+        }
+      }, 100);
     });
+  }
+
+  async function abrirScanner() {
+    document.getElementById("sobreposicao-scanner").classList.add("visivel");
+    definirStatusScanner("Preparando câmera...");
+
+    if (typeof Html5Qrcode === "undefined") {
+      definirStatusScanner("Não foi possível carregar o leitor (sem internet no momento?). Conecte-se e tente de novo.");
+      return;
+    }
+
+    try {
+      await aguardarCordovaPronto();
+      definirStatusScanner("Aponte a câmera para o código de barras da embalagem.");
+      garantirPermissaoCamera(iniciarLeitor, (motivo) => {
+        definirStatusScanner("Permissão de câmera negada" + (motivo ? ": " + motivo : "") + ". Vá em Ajustes > Apps > Gestor de Validade > Permissões e libere a Câmera.");
+      });
+    } catch (e) {
+      definirStatusScanner("Erro ao preparar a câmera: " + (e && e.message ? e.message : e));
+    }
   }
 
   // No app empacotado (Cordova), o Android exige pedir a permissão de câmera
   // em tempo de execução, além da que já está declarada no config.xml.
   function garantirPermissaoCamera(aoConceder, aoNegar) {
-    if (window.cordova && cordova.plugins && cordova.plugins.permissions) {
+    if (window.cordova && window.cordova.plugins && window.cordova.plugins.permissions) {
       const permissoes = cordova.plugins.permissions;
-      permissoes.checkPermission(permissoes.CAMERA, (status) => {
-        if (status.hasPermission) {
-          aoConceder();
-        } else {
-          permissoes.requestPermission(
-            permissoes.CAMERA,
-            (status2) => (status2.hasPermission ? aoConceder() : aoNegar()),
-            aoNegar
-          );
-        }
-      }, aoNegar);
+      permissoes.checkPermission(
+        permissoes.CAMERA,
+        (status) => {
+          if (status.hasPermission) {
+            aoConceder();
+          } else {
+            permissoes.requestPermission(
+              permissoes.CAMERA,
+              (status2) => (status2.hasPermission ? aoConceder() : aoNegar("negada pelo usuário")),
+              () => aoNegar("falha ao solicitar")
+            );
+          }
+        },
+        () => aoNegar("falha ao verificar")
+      );
+    } else if (window.cordova) {
+      // estamos no app empacotado, mas o plugin de permissões não carregou
+      aoNegar("plugin de permissões não encontrado no app instalado — pode ser preciso gerar o APK de novo");
     } else {
       // rodando num navegador comum (fora do APK) — o próprio navegador pede a permissão
       aoConceder();
@@ -353,13 +390,19 @@
   }
 
   function iniciarLeitor() {
-    leitorAtivo = new Html5Qrcode("leitor");
+    try {
+      leitorAtivo = new Html5Qrcode("leitor");
+    } catch (e) {
+      definirStatusScanner("Erro ao iniciar o leitor: " + (e && e.message ? e.message : e));
+      return;
+    }
+
     const config = { fps: 10, qrbox: { width: 260, height: 140 } };
 
     leitorAtivo
       .start({ facingMode: "environment" }, config, onCodigoLido, () => {})
-      .catch(() => {
-        definirStatusScanner("Não foi possível acessar a câmera. Verifique a permissão do app.");
+      .catch((erro) => {
+        definirStatusScanner("Não foi possível acessar a câmera: " + (erro && erro.message ? erro.message : erro));
       });
   }
 
